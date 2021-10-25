@@ -1,0 +1,24 @@
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+requests = "*"
+opencv-python-headless = "4.5.2.54"
+numpy = "1.21.2"
+pandas = "*"
+matplotlib = "*"
+imutils = "*"
+scipy = "*"
+
+[dev-packages]
+pytest = "*"
+homeassistant = "*"
+pylint = "*"
+flake8 = "*"
+autopep8 = "*"
+ciso8601 = "*"
+
+[requires]
+python_version = "3.9"
