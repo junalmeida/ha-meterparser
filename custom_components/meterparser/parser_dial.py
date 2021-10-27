@@ -4,6 +4,8 @@ import time
 import numpy as np
 import logging
 import cv2
+
+from custom_components.meterparser.const import DIAL_READOUT_CONVENTIONS
 _LOGGER = logging.getLogger(__name__)
 
 IDEAL_WIDTH = 1500
@@ -15,7 +17,6 @@ COLOR_GREEN = (0, 255, 0)
 COLOR_RED = (0, 0, 255)
 COLOR_BLUE = (255, 0, 0)
 COLOR_BLACK = (0, 0, 0)
-READOUT_CONVENTIONS = ["CW", "CCW", "CW", "CCW", "CW"]
 
 
 def filter_circles(circles, maxDiff):
@@ -117,7 +118,7 @@ def process_values(values):
     return reading
 
 
-def parse_dials(frame, readout=READOUT_CONVENTIONS, minDiameter=200, maxDiameter=340, debug=False):
+def parse_dials(frame, readout=DIAL_READOUT_CONVENTIONS, minDiameter=200, maxDiameter=340, debug=False):
     width = frame.shape[1]
     if width < IDEAL_WIDTH:
         frame = image_resize(frame, IDEAL_WIDTH)  # larger images are better

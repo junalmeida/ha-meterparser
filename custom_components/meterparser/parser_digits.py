@@ -4,7 +4,7 @@ import requests
 import cv2
 
 
-API_KEY = ''
+API_KEY = '890a9b9b8388957'
 OCR_API = 'https://api.ocr.space/parse/image'
 
 
@@ -40,6 +40,7 @@ def parse_digits(frame, digits_count: int, debug=False):
 def parse_result(ocr: str, digits: int):
     array = ocr.split('\n')
     for x in array:
+        x = x.replace(" ", "").replace(".", "").replace(",", "")
         if len(x) == digits and x.isnumeric():
             return x
     raise Exception("Unable to OCR image")

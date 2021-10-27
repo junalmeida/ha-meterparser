@@ -2,11 +2,7 @@
 Meter Parser Integration
 """
 
-import asyncio
 from .const import (
-    CONF_ENERGY,
-    CONF_METERTYPE,
-    CONF_URI,
     DOMAIN,
     PLATFORMS,
     STARTUP_MESSAGE,
@@ -16,12 +12,20 @@ from homeassistant.core import Config, HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 import logging
 
-from custom_components.meterparser.updater import MeterParserCoordinator
+from custom_components.meterparser.coordinator import MeterParserCoordinator
 _LOGGER: logging.Logger = logging.getLogger(__package__)
 
 
 async def async_setup(hass: HomeAssistant, config: Config):
-    """Set up this integration using YAML is not supported."""
+    """Set up the Meter Parser via configuration.yaml."""
+    if DOMAIN in config:
+        items = config[DOMAIN]
+        for item in items:
+            hass.async_create_task(
+                hass.config_entries.flow.async_init(
+                    DOMAIN, context={"source": "import"}, data=item
+                )
+            )
     return True
 
 
@@ -31,11 +35,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         hass.data.setdefault(DOMAIN, {})
         _LOGGER.info(STARTUP_MESSAGE)
 
-    camuri = entry.data.get(CONF_URI)
-    metertype = entry.data.get(CONF_METERTYPE)
-    energy = entry.data.get(CONF_ENERGY)
-
-    coordinator = MeterParserCoordinator(hass, camuri, metertype, energy)
+    coordinator = MeterParserCoordinator(hass, entry)
     await coordinator.async_refresh()
 
     if not coordinator.last_update_success:
@@ -43,12 +43,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     hass.data[DOMAIN][entry.entry_id] = coordinator
 
-    for platform in PLATFORMS:
-        if entry.options.get(platform, True):
-            coordinator.platforms.append(platform)
-            hass.async_add_job(
-                hass.config_entries.async_forward_entry_setup(entry, platform)
-            )
+    for component in PLATFORMS:
+        hass.async_create_task(
+            hass.config_entries.async_forward_entry_setup(entry, component)
+        )
 
     entry.add_update_listener(async_reload_entry)
     return True
@@ -56,20 +54,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Handle removal of an entry."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]
-    unloaded = all(
-        await asyncio.gather(
-            *[
-                hass.config_entries.async_forward_entry_unload(entry, platform)
-                for platform in PLATFORMS
-                if platform in coordinator.platforms
-            ]
-        )
-    )
-    if unloaded:
-        hass.data[DOMAIN].pop(entry.entry_id)
+    for component in PLATFORMS:
+        await hass.config_entries.async_forward_entry_unload(entry, component)
 
-    return unloaded
+    return True
 
 
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:

@@ -1,95 +1,83 @@
 """Adds config flow for Meter Parser."""
 from homeassistant import config_entries
-from homeassistant.core import callback
 import voluptuous as vol
 
 from .const import (
     CONF_URI,
     CONF_METERTYPE,
-    CONF_ENERGY,
+    CONF_UTILITYTYPE,
+    CONF_ZOOMFACTOR,
+    CONF_DEBUG,
     DOMAIN,
-    ENERGYTYPES,
-    METERTYPES,
-    PLATFORMS,
+    CONF_COUNT,
+    CONF_AVGSIZE,
+    UTILITYTYPES,
+    METERTYPES
 )
 
 
-class MeterParserFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
-    """Config flow for MeterParser."""
-
-    VERSION = 1
-    CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_POLL
+class MeterParserFlow(config_entries.ConfigFlow, domain=DOMAIN):
+    """Meter Parser config flow."""
 
     def __init__(self):
         """Initialize."""
-        self._errors = {}
+        self.uri = None
+        self.zoomfactor = 1.0
+        self.metertype = METERTYPES[0]
+        self.utilitytype = UTILITYTYPES[0]
+        self.avgsize = 100
+        self.dials = 4
+        self.debug = False
 
-    async def async_step_user(self, user_input=None):
-        """Handle a flow initialized by the user."""
-        self._errors = {}
-
-        # Uncomment the next 2 lines if only a single instance of the integration is allowed:
-        # if self._async_current_entries():
-        #     return self.async_abort(reason="single_instance_allowed")
-
-        user_input = {}
-        # Provide defaults for form
-        user_input[CONF_URI] = ""
-        user_input[CONF_ENERGY] = ""
-        user_input[CONF_METERTYPE] = ""
-
-        return await self._show_config_form(user_input)
-
-    @staticmethod
-    @callback
-    def async_get_options_flow(config_entry):
-        return MeterParserOptionsFlowHandler(config_entry)
-
-    async def _show_config_form(self, user_input):  # pylint: disable=unused-argument
-        """Show the configuration form to edit location data."""
-        return self.async_show_form(
-            step_id="user",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(CONF_URI, default=user_input[CONF_URI]): str,
-                    vol.Required(CONF_METERTYPE, default=user_input[CONF_METERTYPE]): vol.In(METERTYPES),
-                    vol.Required(CONF_ENERGY, default=user_input[CONF_ENERGY]): vol.In(ENERGYTYPES)
-                }
-            ),
-            errors=self._errors,
-        )
-
-
-class MeterParserOptionsFlowHandler(config_entries.OptionsFlow):
-    """MeterParser config flow options handler."""
-
-    def __init__(self, config_entry):
-        """Initialize HACS options flow."""
-        self.config_entry = config_entry
-        self.options = dict(config_entry.options)
-
-    async def async_step_init(self, user_input=None):  # pylint: disable=unused-argument
-        """Manage the options."""
-        return await self.async_step_user()
-
-    async def async_step_user(self, user_input=None):
-        """Handle a flow initialized by the user."""
-        if user_input is not None:
-            self.options.update(user_input)
-            return await self._update_options()
-
-        return self.async_show_form(
-            step_id="user",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(x, default=self.options.get(x, True)): bool
-                    for x in sorted(PLATFORMS)
-                }
-            ),
-        )
-
-    async def _update_options(self):
-        """Update config entry options."""
+    def _get_entry(self):
         return self.async_create_entry(
-            title=self.config_entry.data.get(CONF_URI), data=self.options
+            title="%s Meter" % self.utilitytype,
+            data={
+                CONF_URI: self.uri,
+                CONF_ZOOMFACTOR: self.zoomfactor,
+                CONF_METERTYPE: self.metertype,
+                CONF_UTILITYTYPE: self.utilitytype,
+                CONF_AVGSIZE: self.avgsize,
+                CONF_COUNT: self.dials,
+                CONF_DEBUG: self.debug
+            },
         )
+
+    async def async_step_import(self, user_input=None):
+        """Handle configuration by yaml file."""
+        return await self.async_step_user(user_input)
+
+    async def async_step_user(self, user_input=None):
+        """Handle configuration via user input."""
+        errors = {}
+        if user_input is not None:
+            self.uri = user_input[CONF_URI]
+            self.zoomfactor = user_input[CONF_ZOOMFACTOR]
+            self.metertype = user_input[CONF_METERTYPE]
+            self.utilitytype = user_input[CONF_UTILITYTYPE]
+            self.avgsize = user_input[CONF_AVGSIZE]
+            self.dials = user_input[CONF_COUNT]
+            self.debug = user_input[CONF_DEBUG]
+
+            await self.async_set_unique_id(self.uri)
+            self._abort_if_unique_id_configured()
+
+        data_schema = vol.Schema(
+            {
+                vol.Required(CONF_URI, default=self.uri): vol.Strip(),
+                vol.Required(CONF_UTILITYTYPE, default=self.utilitytype): vol.In(UTILITYTYPES),
+                vol.Required(CONF_METERTYPE, default=self.metertype): vol.In(METERTYPES),
+                vol.Optional(CONF_AVGSIZE, default=self.avgsize): vol.Number(precision=3, scale=0),
+                vol.Optional(CONF_ZOOMFACTOR, default=self.zoomfactor): vol.Number(precision=1, scale=2),
+                vol.Optional(CONF_DEBUG, default=self.debug): vol.Boolean()
+            }
+        )
+        return self.async_show_form(
+            step_id="user", data_schema=data_schema, errors=errors
+        )
+
+    async def async_step_unignore(self, user_input):
+        """Rediscover a previously ignored discover."""
+        unique_id = user_input["unique_id"]
+        await self.async_set_unique_id(unique_id)
+        return await self.async_step_user()

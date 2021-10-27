@@ -38,7 +38,7 @@ class MeterParserCoordinator(DataUpdateCoordinator):
 
         try:
             cap = cv2.VideoCapture(self.uri)
-            ret, frame = cap.read()
+            _, frame = cap.read()
             return parse_dials(frame, 5)
         except Exception as exception:
             raise UpdateFailed() from exception
