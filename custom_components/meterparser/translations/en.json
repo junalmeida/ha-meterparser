@@ -1,0 +1,29 @@
+{
+    "config": {
+      "error": {
+        "invalid_path": "The path provided is not valid. Should be in the format `rstp://uri:port`."
+      },
+      "step": {
+        "user": {
+          "data": {
+            "utility_type": "Utility",
+            "meter_type": "Meter",
+            "dial_avg_hint": "This can vary based on the camera position.",
+            "dial_avg": "Dial Diameter (pixels)",
+            "dial_count": "Number of Dials",
+            "uri": "RTSP Camera Uri",
+            "zoom_factor_hint": "Zoom and crop region of interest (the dials). 1 means no zoom.",
+            "zoom_factor": "Zoom Factor",
+            "debug": "Create an image for debug purposes",
+            "add_more": "Add another meter?"
+          },
+          "description": "Enter your meter and camera details for this integration.",
+          "title": "Setup your IP Camera"
+        }
+      },
+      "abort": {
+        "unknown": "Unknown error occurred",
+        "single_instance_allowed": "The Meter Parser is already configured"
+      }
+    }
+}
