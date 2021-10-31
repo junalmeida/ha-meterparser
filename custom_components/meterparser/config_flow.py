@@ -27,26 +27,21 @@ class MeterParserConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     def __init__(self):
         """Initialize."""
+        self.data = []
+
+    def _get_default_entry(self):
         default_meter = next(iter(METERTYPES))
         default_utility = next(iter(UTILITYTYPES))
 
-        self.data = [
-            {
-                CONF_URI: None,
-                CONF_ZOOMFACTOR: 1.0,
-                CONF_METERTYPE: default_meter,
-                CONF_UTILITYTYPE: default_utility,
-                CONF_AVGSIZE: 100,
-                CONF_COUNT: 4,
-                CONF_DEBUG: False,
-            }
-        ]
-
-    def _get_entry(self):
-        return self.async_create_entry(
-            title="%s Meter" % self.data[CONF_UTILITYTYPE],
-            data=self.data,
-        )
+        return {
+            CONF_URI: None,
+            CONF_ZOOMFACTOR: 1.0,
+            CONF_METERTYPE: default_meter,
+            CONF_UTILITYTYPE: default_utility,
+            CONF_AVGSIZE: 100,
+            CONF_COUNT: 4,
+            CONF_DEBUG: False,
+        }
 
     async def async_step_import(self, user_input=None):
         """Handle configuration by yaml file."""
@@ -63,29 +58,32 @@ class MeterParserConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors = {}
 
         if user_input is not None:
-            self.data.append(user_input)
+            self.data[len(self.data) - 1] = user_input
+        elif user_input is None or user_input[ADD_MORE] is True:
+            self.data.append(self._get_default_entry())
 
         if user_input is not None and user_input[ADD_MORE] is False:
             # await self.async_set_unique_id(self.data[CONF_UTILITYTYPE])
             # self._abort_if_unique_id_configured()
             return self.async_create_entry(title=NAME, data=self.data)
 
+        current = self.data[len(self.data) - 1]
         data_schema = vol.Schema(
             {
-                vol.Required(CONF_URI, default=self.data[CONF_URI]): cv.string,
+                vol.Required(CONF_URI, default=current[CONF_URI]): cv.string,
                 vol.Required(
-                    CONF_UTILITYTYPE, default=self.data[CONF_UTILITYTYPE]
+                    CONF_UTILITYTYPE, default=current[CONF_UTILITYTYPE]
                 ): vol.In(UTILITYTYPES),
-                vol.Required(CONF_METERTYPE, default=self.data[CONF_METERTYPE]): vol.In(
+                vol.Required(CONF_METERTYPE, default=current[CONF_METERTYPE]): vol.In(
                     METERTYPES
                 ),
                 vol.Optional(
-                    CONF_AVGSIZE, default=self.data[CONF_AVGSIZE]
+                    CONF_AVGSIZE, default=current[CONF_AVGSIZE]
                 ): cv.positive_int,
                 vol.Optional(
-                    CONF_ZOOMFACTOR, default=self.data[CONF_ZOOMFACTOR]
+                    CONF_ZOOMFACTOR, default=current[CONF_ZOOMFACTOR]
                 ): cv.positive_float,
-                vol.Optional(CONF_DEBUG, default=self.data[CONF_DEBUG]): cv.boolean,
+                vol.Optional(CONF_DEBUG, default=current[CONF_DEBUG]): cv.boolean,
                 vol.Optional(ADD_MORE, default=False): cv.boolean,
             }
         )

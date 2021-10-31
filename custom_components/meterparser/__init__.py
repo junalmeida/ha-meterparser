@@ -12,7 +12,7 @@ from homeassistant.core import Config, HomeAssistant
 from homeassistant.config_entries import ConfigEntry
 import logging
 
-from custom_components.meterparser.coordinator import MeterParserCoordinator
+# from custom_components.meterparser.coordinator import MeterParserCoordinator
 
 _LOGGER: logging.Logger = logging.getLogger(__package__)
 
