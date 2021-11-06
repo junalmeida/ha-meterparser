@@ -121,7 +121,7 @@ def process_values(values):
 
 
 def parse_dials(
-    frame, readout: list[str], minDiameter=200, maxDiameter=340, debug_path: str=None
+    frame, readout: list[str], minDiameter=200, maxDiameter=340, debug_path: str = None
 ):
     width = frame.shape[1]
     if width < IDEAL_WIDTH:
@@ -143,7 +143,7 @@ def parse_dials(
 
     output = frame.copy()
 
-    # TODO: move values to config, or try to figure them out (increase values incrementally)
+    # TODO: move values to config, or try to figure them out (increase values incrementally?)
     circles = cv2.HoughCircles(
         gray,
         cv2.HOUGH_GRADIENT,

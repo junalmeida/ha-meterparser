@@ -1,24 +1,16 @@
 """Meter Parser Image Processing component"""
-import asyncio
 import datetime
-import io
 import logging
 import os
-import re
-from typing import Literal
-from numpy import array
 import numpy
-
 import voluptuous as vol
-from config.custom_components.meterparser.parser_dial import parse_dials
-from config.custom_components.meterparser.parser_digits import parse_digits
+
+from .parser_dial import parse_dials
+from .parser_digits import parse_digits
 
 from homeassistant.components.image_processing import (
-    ATTR_CONFIDENCE,
-    ATTR_ENTITY_ID,
     CONF_ENTITY_ID,
     CONF_NAME,
-    CONF_SOURCE,
     PLATFORM_SCHEMA,
     ImageProcessingEntity,
 )
@@ -35,11 +27,8 @@ from homeassistant.helpers import device_registry as dr
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity import (
     EntityDescription,
-    async_generate_entity_id,
     generate_entity_id,
 )
-from homeassistant.util import slugify
-from homeassistant.util.async_ import run_callback_threadsafe
 
 from .const import (
     ALLOWED_DEVICE_CLASSES,
@@ -62,9 +51,6 @@ from .const import (
     METERTYPES,
 )
 
-EVENT_FOUND_READING = DOMAIN + ".reading"
-
-
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Optional(CONF_NAME): cv.string,
@@ -73,7 +59,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Required(CONF_METERTYPE): vol.In(METERTYPES),
         vol.Optional(CONF_OCR_API): cv.string,
         vol.Optional(CONF_DIGITS_COUNT, default=6): cv.positive_int,
-        vol.Optional(CONF_DECIMALS_COUNT, default=1): cv.positive_int,
+        vol.Optional(CONF_DECIMALS_COUNT, default=0): cv.positive_int,
         vol.Optional(CONF_DEBUG, default=False): cv.boolean,
         vol.Required(CONF_DEVICE_CLASS): vol.In(ALLOWED_DEVICE_CLASSES),
         vol.Required(CONF_UNIT_OF_MEASUREMENT): cv.string,
@@ -193,11 +179,11 @@ class MeterParserMeasurementEntity(ImageProcessingEntity):
                 readout=self._dials,
                 minDiameter=self._dial_size,
                 maxDiameter=self._dial_size + 100,
-                debug=self._debug_path,
+                debug_path=self._debug_path,
             )
         elif self._metertype == METERTYPEDIGITS:
             reading = parse_digits(
-                cv_image, self._digits, self._ocr_key, self._debug_path
+                cv_image, self._digits, self._ocr_key, debug_path=self._debug_path
             )
         if self._decimals > 0:
             reading = float(reading) / float(10 ** self._decimals)
