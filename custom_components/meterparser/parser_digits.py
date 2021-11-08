@@ -15,7 +15,7 @@ def parse_digits(frame, digits_count: int, ocr_key: str, debug_path: str = None)
         "file": ("image.jpg", imencoded.tostring(), "image/jpeg", {"Expires": "0"})
     }
     payload = {"apikey": ocr_key, "language": "eng", "scale": True, "OCREngine": 2}
-    response = requests.post(OCR_API, files=files, data=payload)
+    response = requests.post(OCR_API, files=files, data=payload, timeout=60)
 
     if response.status_code == 200:
         result = response.json()
@@ -27,10 +27,11 @@ def parse_digits(frame, digits_count: int, ocr_key: str, debug_path: str = None)
                 and result["ErrorMessage"] != ""
             ):
                 raise Exception(result["ErrorMessage"])
-            elif result["ParsedText"] == "":
-                raise Exception("Unable to OCR image")
             else:
-                return parse_result(result["ParsedText"].strip(), digits_count)
+                return parse_result(
+                    result["ParsedText"] if "ParsedText" in result else None,
+                    digits_count,
+                )
         if "ErrorMessage" in result:
             raise Exception(result["ErrorMessage"])
 
@@ -38,9 +39,10 @@ def parse_digits(frame, digits_count: int, ocr_key: str, debug_path: str = None)
 
 
 def parse_result(ocr: str, digits: int):
-    array = ocr.split("\n")
-    for x in array:
-        x = x.replace(" ", "").replace(".", "").replace(",", "")
-        if len(x) == digits and x.isnumeric():
-            return x
-    raise Exception("Unable to OCR image")
+    if ocr is not None and ocr != "":
+        array = ocr.strip().split("\n")
+        for x_str in array:
+            x_str = x_str.replace(" ", "").replace(".", "").replace(",", "")
+            if len(x_str) == digits and x_str.isnumeric():
+                return x_str
+    raise Exception("Unable to OCR image or no text found.")

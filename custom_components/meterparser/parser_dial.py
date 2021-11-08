@@ -154,7 +154,9 @@ def parse_dials(
     )
 
     if circles is None:
-        raise Exception("Could not find any dial")
+        raise Exception(
+            "Could not find any dial. Check dial diameter setting and try again."
+        )
 
     # find circles which are roughly on the same level
     circles = filter_circles(circles, maxDiff)
