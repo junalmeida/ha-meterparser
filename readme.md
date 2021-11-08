@@ -2,7 +2,7 @@
 
 # Home Assistant - Meter Parser Integration
 [![BuyMeCoffee][buymecoffeebadge]][buymecoffee] ![Checks][checksbadge]
-![Last release][releasebadge] [![Hacs][hacsbadge]][hacs]
+![Last release][releasebadge] [![Hacs][hacsbadge]][hacs] [^1]
 
 This is a custom component to allow parse of dial and digits utility meters like water, gas, and electricity to provide energy consumption information to home assistant using a regular ip camera.
 
