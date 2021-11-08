@@ -1,3 +1,5 @@
+<img src="docs/electric-meter.png" align="right" width="128" />  
+
 # Home Assistant - Meter Parser Integration
 [![BuyMeCoffee][buymecoffeebadge]][buymecoffee] ![Checks][checksbadge]
 ![Last release][releasebadge] [![Hacs][hacsbadge]][hacs]
@@ -75,6 +77,12 @@ sensor:
 4. File an issue in this Github Repository, add logs and if possible an image of your meter.
 
 
+
+
+** Icons made by [Smashicons][iconcredit] from [flaticon.com][iconcreditsite]
+
+[iconcredit]: https://www.flaticon.com/authors/smashicons
+[iconcreditsite]: https://www.flaticon.com/
 [buymecoffee]: https://www.buymeacoffee.com/junalmeida
 [buymecoffeebadge]: https://img.shields.io/badge/buy%20me%20a%20coffee-donate-orange?style=plastic&logo=buymeacoffee
 [checksbadge]:https://img.shields.io/github/checks-status/junalmeida/ha-meterparser/master?style=plastic
