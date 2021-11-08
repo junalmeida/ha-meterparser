@@ -1,13 +1,13 @@
-
-
 # Home Assistant - Meter Parser Integration
+[![BuyMeCoffee][buymecoffeebadge]][buymecoffee] ![Checks][checksbadge]
+![Last release][releasebadge]
 
 This is a custom component to allow parse of dial utility meters to provide energy consumption information to home assistant using a regular ip camera.
 
 ### Highlights of what **Meter Parser** can do
 
 * Parse Meters
-* Provide a consumption sensor of `total_increasing` type.
+* Provide a consumption sensor of `total_increasing` state type.
 * Cheap IP or PoE cameras must do
 
 ### Potential Downsides
@@ -21,12 +21,9 @@ This is a custom component to allow parse of dial utility meters to provide ener
 2. Add [https://github.com/junalmeida/ha-meterparser](https://github.com/junalmeida/ha-meterparser) as a custom
    repository as Type: Integration
 3. Click install under "Meter Parser Integration" in the Integration tab
-4. Restart HA
-5. Navigate to _Integrations_ in the config interface.
-6. Click _ADD INTEGRATION_
-7. Search for _Meter Parser Integration_
-8. Put the email for wyze in the first box and your password in the second
-9. Click _SUBMIT_ and profit!
+4. Add your meter to your `configuration.yaml` file as shown below
+5. Restart HA
+
 
 ## Usage
 
@@ -73,4 +70,10 @@ sensor:
     ```
 2. Restart HA
 3. Verify you're still having the issue
-4. File an issue in this Github Repository (being sure to fill out every provided field)
+4. File an issue in this Github Repository, add logs and if possible an image of your meter.
+
+
+[buymecoffee]: https://www.buymeacoffee.com/junalmeida
+[buymecoffeebadge]: https://img.shields.io/badge/buy%20me%20a%20coffee-donate-orange?style=plastic&logo=buymeacoffee
+[checksbadge]:https://img.shields.io/github/checks-status/junalmeida/ha-meterparser/master?style=plastic
+[releasebadge]:https://img.shields.io/github/v/release/junalmeida/ha-meterparser?style=plastic
