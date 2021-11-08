@@ -4,7 +4,7 @@
 [![BuyMeCoffee][buymecoffeebadge]][buymecoffee] ![Checks][checksbadge]
 ![Last release][releasebadge] [![Hacs][hacsbadge]][hacs]
 
-This is a custom component to allow parse of dial utility meters to provide energy consumption information to home assistant using a regular ip camera.
+This is a custom component to allow parse of dial and digits utility meters like water, gas, and electricity to provide energy consumption information to home assistant using a regular ip camera.
 
 This repository is under alpha stage, so expect bugs and breaking changes.
 
