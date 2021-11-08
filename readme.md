@@ -18,6 +18,9 @@ This repository is under alpha stage, so expect bugs and breaking changes.
 
 * Positioning a camera and getting a good image could be difficult.
 * Could be hard to setup calibration parameters, such as `zoom_factor`.
+* To recognize digits, I am relying on OCR services on the internet. I am open to 
+suggestions on better local libraries to scan digits. Recognizing dials is simple and local,
+no internet connection or APIs is required.
 
 ## Installation (HACS) - Highly Recommended
 
