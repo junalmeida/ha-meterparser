@@ -1,6 +1,6 @@
 <img src="docs/electric-meter.png" align="right" width="128" />  
 
-# Home Assistant - Meter Parser Integration
+# Home Assistant - Meter Parser Integration [^1]
 [![BuyMeCoffee][buymecoffeebadge]][buymecoffee] ![Checks][checksbadge]
 ![Last release][releasebadge] [![Hacs][hacsbadge]][hacs]
 
@@ -82,7 +82,7 @@ sensor:
 
 
 
-** Icons made by [Smashicons][iconcredit] from [flaticon.com][iconcreditsite]
+[^1]: Icons made by [Smashicons][iconcredit] from [flaticon.com][iconcreditsite]
 
 [iconcredit]: https://www.flaticon.com/authors/smashicons
 [iconcreditsite]: https://www.flaticon.com/
