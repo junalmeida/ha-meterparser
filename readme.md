@@ -80,6 +80,10 @@ sensor:
 4. File an issue in this Github Repository, add logs and if possible an image of your meter.
 
 
+## Credits
+🎉 [Dial Parser](custom_components/meter_parser/parser_dial.py) code is based on the awesome work of [@mirogta](https://github.com/mirogta), please [support his work](https://github.com/mirogta/dial-meter-reader-opencv-py).
+
+
 
 
 [^1]: Icons made by [Smashicons][iconcredit] from [flaticon.com][iconcreditsite]
