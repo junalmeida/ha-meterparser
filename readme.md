@@ -1,6 +1,6 @@
 <img src="docs/electric-meter.png" align="right" width="128" />  
 
-# Home Assistant - Meter Parser Integration [^1]
+# Home Assistant - Meter Parser Integration
 [![BuyMeCoffee][buymecoffeebadge]][buymecoffee] ![Checks][checksbadge]
 ![Last release][releasebadge] [![Hacs][hacsbadge]][hacs]
 
