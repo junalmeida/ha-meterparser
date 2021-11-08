@@ -15,11 +15,11 @@ from homeassistant.const import (
 
 
 NAME = "Meter Parser Integration"
-# DOMAIN = "meterparser"
-# DOMAIN_DATA = f"{DOMAIN}_data"
-# VERSION = "0.0.1"
 ISSUE_URL = "https://github.com/junalmeida/ha-meterparser/issues"
+DOMAIN = "meter_parser"
+DEFAULT_NAME = DOMAIN
 ATTRIBUTION = "Data provided by %s camera"
+
 # Icons
 ICON_GAS = "mdi:fire"
 ICON_ELECTRICITY = "mdi:lightning-bolt"
@@ -42,11 +42,10 @@ UNITS_OF_MEASUREMENT = {
 }
 
 # # Platforms
-# SENSOR = "sensor"
-# PLATFORMS = [SENSOR]
+SENSOR = "sensor"
+PLATFORMS = [SENSOR]
 
 # Configuration and options
-# CONF_ENTITY_ID = "entity_id"
 CONF_ZOOMFACTOR = "zoom_factor"
 CONF_OCR_API = "ocr_space_key"
 
@@ -69,20 +68,3 @@ DIAL_DEFAULT_READOUT = [
     DIAL_READOUT_CCW,
     DIAL_READOUT_CW,
 ]
-
-READING = "reading"
-
-# # Defaults
-DOMAIN = "meter_parser"
-DEFAULT_NAME = DOMAIN
-
-
-# STARTUP_MESSAGE = f"""
-# -------------------------------------------------------------------
-# {NAME}
-# Version: {VERSION}
-# This is a custom integration!
-# If you have any issues with this you need to open an issue here:
-# {ISSUE_URL}
-# -------------------------------------------------------------------
-# """
