@@ -1,8 +1,10 @@
 # Home Assistant - Meter Parser Integration
 [![BuyMeCoffee][buymecoffeebadge]][buymecoffee] ![Checks][checksbadge]
-![Last release][releasebadge]
+![Last release][releasebadge] [![Hacs][hacsbadge]][hacs]
 
 This is a custom component to allow parse of dial utility meters to provide energy consumption information to home assistant using a regular ip camera.
+
+This repository is under alpha stage, so expect bugs and breaking changes.
 
 ### Highlights of what **Meter Parser** can do
 
@@ -76,4 +78,6 @@ sensor:
 [buymecoffee]: https://www.buymeacoffee.com/junalmeida
 [buymecoffeebadge]: https://img.shields.io/badge/buy%20me%20a%20coffee-donate-orange?style=plastic&logo=buymeacoffee
 [checksbadge]:https://img.shields.io/github/checks-status/junalmeida/ha-meterparser/master?style=plastic
-[releasebadge]:https://img.shields.io/github/v/release/junalmeida/ha-meterparser?style=plastic
+[releasebadge]:https://img.shields.io/github/v/release/junalmeida/ha-meterparser?style=plastic&display_name=tag&include_prereleases
+[hacs]:https://github.com/hacs/integration
+[hacsbadge]:https://img.shields.io/badge/HACS-Custom-41BDF5.svg?style=plastic
