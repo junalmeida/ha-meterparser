@@ -1,8 +1,8 @@
 import os
 import cv2
 
-from custom_components.meterparser.parser_dial import parse_dials
-from custom_components.meterparser.parser_digits import parse_digits
+from custom_components.meter_parser.parser_dial import parse_dials
+from custom_components.meter_parser.parser_digits import parse_digits
 
 
 def test_eletricity_dials_1():

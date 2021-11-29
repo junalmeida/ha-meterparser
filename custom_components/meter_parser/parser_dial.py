@@ -1,11 +1,26 @@
-# dial meter parser based on https://github.com/mirogta/dial-meter-reader-opencv-py
+""" Dial Parser based on https://github.com/mirogta/dial-meter-reader-opencv-py with changes to accomodate parametrized methods and minor adjustments """
+
+#    Copyright 2021 Marcos Junior
+
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+
+#        http://www.apache.org/licenses/LICENSE-2.0
+
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+
 import os
 import time
 import numpy as np
 import logging
 import cv2
 
-from custom_components.meterparser.const import DIAL_READOUT_CONVENTIONS
+
 _LOGGER = logging.getLogger(__name__)
 
 IDEAL_WIDTH = 1500
@@ -75,7 +90,9 @@ def find_needle(image, cx, cy, radius):
         y2 = cy + int(size * np.sin(angle * np.pi / 180.0))
 
         # cv2.line(image, center, (x2, y2), 255, thickness=2)
-        points_on_line = np.linspace(center, (x2, y2), radius)  # 100 samples on the line
+        points_on_line = np.linspace(
+            center, (x2, y2), radius
+        )  # 100 samples on the line
         for pt in points_on_line:
             point = np.int32(pt)
             px = point[0]
@@ -103,7 +120,7 @@ def find_needle(image, cx, cy, radius):
 
 
 def process_values(values):
-    reading = ''
+    reading = ""
     for i, (v) in enumerate(values):
         whole = int(np.floor(v))
         if i == len(values) - 1:
@@ -118,7 +135,9 @@ def process_values(values):
     return reading
 
 
-def parse_dials(frame, readout=DIAL_READOUT_CONVENTIONS, minDiameter=200, maxDiameter=340, debug=False):
+def parse_dials(
+    frame, readout: list[str], minDiameter=200, maxDiameter=340, debug_path: str = None
+):
     width = frame.shape[1]
     if width < IDEAL_WIDTH:
         frame = image_resize(frame, IDEAL_WIDTH)  # larger images are better
@@ -134,16 +153,25 @@ def parse_dials(frame, readout=DIAL_READOUT_CONVENTIONS, minDiameter=200, maxDia
     maxDiff = round(HORIZONTAL_MAX_DIFF * ratio)
 
     debugfile = time.strftime("dials-%Y-%m-%d_%H-%M-%S")
-    if debug:
-        cv2.imwrite(os.path.join("tests", "results", "%s-in.jpg" % debugfile), gray)
+    if debug_path is not None:
+        cv2.imwrite(os.path.join(debug_path, "%s-in.jpg" % debugfile), gray)
 
     output = frame.copy()
 
-    # TODO: move values to config, or try to figure them out (increase values incrementally)
-    circles = cv2.HoughCircles(gray, cv2.HOUGH_GRADIENT, 1.5, minDist=minRadius - 10, minRadius=minRadius, maxRadius=maxRadius)
+    # TODO: move values to config, or try to figure them out (increase values incrementally?)
+    circles = cv2.HoughCircles(
+        gray,
+        cv2.HOUGH_GRADIENT,
+        1.5,
+        minDist=minRadius - 10,
+        minRadius=minRadius,
+        maxRadius=maxRadius,
+    )
 
     if circles is None:
-        raise Exception("Could not find any dial")
+        raise Exception(
+            "Could not find any dial. Check dial diameter setting and try again."
+        )
 
     # find circles which are roughly on the same level
     circles = filter_circles(circles, maxDiff)
@@ -159,15 +187,28 @@ def parse_dials(frame, readout=DIAL_READOUT_CONVENTIONS, minDiameter=200, maxDia
         actual_value = read_value(value, convention)
         values.append(actual_value)
 
-        _LOGGER.debug("#%i: (%i, %i) radius: %i - value: %f" %
-                      (i, x, y, r, actual_value))
+        _LOGGER.debug(
+            "#%i: (%i, %i) radius: %i - value: %f" % (i, x, y, r, actual_value)
+        )
 
         # draw needle and value
         cv2.line(output, (x, y), tip, COLOR_MAGENTA, thickness=3)
-        cv2.putText(output, str(actual_value), (x - 19, y + r + 24),
-                    cv2.FONT_HERSHEY_TRIPLEX, 1, COLOR_RED)
-        cv2.putText(output, str(actual_value), (x - 21, y + r + 26),
-                    cv2.FONT_HERSHEY_TRIPLEX, 1, COLOR_BLACK)  # try to make a bold font
+        cv2.putText(
+            output,
+            str(actual_value),
+            (x - 19, y + r + 24),
+            cv2.FONT_HERSHEY_TRIPLEX,
+            1,
+            COLOR_RED,
+        )
+        cv2.putText(
+            output,
+            str(actual_value),
+            (x - 21, y + r + 26),
+            cv2.FONT_HERSHEY_TRIPLEX,
+            1,
+            COLOR_BLACK,
+        )  # try to make a bold font
 
         # draw the circle in the output image, then draw a rectangle
         # corresponding to the center of the circle
@@ -182,25 +223,39 @@ def parse_dials(frame, readout=DIAL_READOUT_CONVENTIONS, minDiameter=200, maxDia
     # TODO: compare to the previous reading? it should never be less than the previous one
     reading = process_values(values)
     _LOGGER.debug("Final reading: %s" % reading)
-    cv2.putText(output, reading, (minx, miny - maxRadius + round(radius / 2)),
-                cv2.FONT_HERSHEY_TRIPLEX, 1.3, COLOR_RED)
-    cv2.putText(output, reading, (minx - 2, miny - maxRadius - 2 + round(radius / 2)),
-                cv2.FONT_HERSHEY_TRIPLEX, 1.3, COLOR_BLACK)  # try to make a bold font
+    cv2.putText(
+        output,
+        reading,
+        (minx, miny - maxRadius + round(radius / 2)),
+        cv2.FONT_HERSHEY_TRIPLEX,
+        1.3,
+        COLOR_RED,
+    )
+    cv2.putText(
+        output,
+        reading,
+        (minx - 2, miny - maxRadius - 2 + round(radius / 2)),
+        cv2.FONT_HERSHEY_TRIPLEX,
+        1.3,
+        COLOR_BLACK,
+    )  # try to make a bold font
 
-    if debug:
-        cv2.imwrite(os.path.join("tests", "results", "%s-out.jpg" % debugfile), output)
+    if debug_path is not None:
+        cv2.imwrite(os.path.join(debug_path, "%s-out.jpg" % debugfile), output)
     # ignore results if an exact number of dials wasn't found
     # we could do that earlier, but we would lose important debug messages
     dials_count = len(readout)
     if len(circles) != dials_count:
-        raise Exception("Could not find the correct amount of dials. Found: %d" % len(circles))
+        raise Exception(
+            "Could not find the correct amount of dials. Found: %d" % len(circles)
+        )
 
     return reading
 
 
 def read_value(value, convention):
     if convention == "CCW":
-        result = 10. - value
+        result = 10.0 - value
     else:
         result = value
     if result == 10:

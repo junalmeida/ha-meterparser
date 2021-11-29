@@ -1,9 +1,11 @@
 {
-    "domain": "meterparser",
+    "domain": "meter_parser",
     "version": "1.0.0",
     "name": "Meter Parser",
-    "config_flow": true,
     "iot_class": "local_polling",
+    "after_dependencies": [
+        "camera"
+    ],
     "documentation": "https://github.com/junalmeida/ha-meterparser#readme",
     "issue_tracker": "https://github.com/junalmeida/ha-meterparser/issues",
     "requirements": [
