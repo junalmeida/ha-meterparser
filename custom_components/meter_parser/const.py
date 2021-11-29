@@ -67,6 +67,8 @@ METERTYPEDIALS = "dials"
 METERTYPEDIGITS = "digits"
 METERTYPES = {METERTYPEDIALS: "Dials", METERTYPEDIGITS: "Digits (OCR)"}
 
+CONF_LIGHT_ENTITY_ID = "light_entity_id"
+
 CONF_DIAL_SIZE = "dial_size"
 CONF_DIGITS_COUNT = "digits"
 CONF_DECIMALS_COUNT = "decimals"

@@ -36,6 +36,7 @@ from homeassistant.components.image_processing import (
     ImageProcessingEntity,
 )
 from homeassistant.const import (
+    ATTR_ENTITY_ID,
     CONF_DEVICE_CLASS,
     CONF_SOURCE,
     CONF_UNIT_OF_MEASUREMENT,
@@ -43,7 +44,16 @@ from homeassistant.const import (
     DEVICE_CLASS_GAS,
     DEVICE_CLASS_POWER,
     ENERGY_KILO_WATT_HOUR,
+    SERVICE_TURN_OFF,
+    SERVICE_TURN_ON,
 )
+from homeassistant.components.light import (
+    DOMAIN as DOMAIN_LIGHT,
+)
+from homeassistant.components.camera import (
+    DOMAIN as DOMAIN_CAMERA,
+)
+
 from homeassistant.core import Config, HomeAssistant, callback, split_entity_id
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import device_registry as dr
@@ -51,6 +61,7 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity import (
     generate_entity_id,
 )
+from homeassistant.helpers.event import async_call_later
 
 from .const import (
     ALLOWED_DEVICE_CLASSES,
@@ -73,12 +84,14 @@ from .const import (
     METERTYPEDIGITS,
     METERTYPES,
     UNITS_OF_MEASUREMENT,
+    CONF_LIGHT_ENTITY_ID,
 )
 
 SOURCE_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_ENTITY_ID): cv.entity_domain("camera"),
+        vol.Required(CONF_ENTITY_ID): cv.entity_domain(DOMAIN_CAMERA),
         vol.Optional(CONF_NAME): cv.string,
+        vol.Optional(CONF_LIGHT_ENTITY_ID): cv.entity_domain(DOMAIN_LIGHT),
     }
 )
 
@@ -127,7 +140,8 @@ async def async_setup_platform(
             MeterParserMeasurementEntity(
                 hass,
                 config,
-                camera[CONF_ENTITY_ID],
+                camera.get(CONF_ENTITY_ID),
+                camera.get(CONF_LIGHT_ENTITY_ID),
                 camera.get(CONF_NAME),
             )
         )
@@ -140,13 +154,19 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
     """Measurement entity."""
 
     def __init__(
-        self, hass: HomeAssistant, config: dict, entity_id: str, entity_name: str
+        self,
+        hass: HomeAssistant,
+        config: dict,
+        entity_id: str,
+        light_entity_id: str,
+        entity_name: str,
     ):
         """Initialize."""
         super().__init__()
         self.hass = hass
         self._confidence = 0.7
         self._camera = entity_id
+        self._light = light_entity_id
         self._debug: bool = bool(config[CONF_DEBUG] if CONF_DEBUG in config else False)
         self._debug_path = hass.config.path("debug/" + DOMAIN) if self._debug else None
         if self._debug_path is not None and not os.path.exists(self._debug_path):
@@ -215,6 +235,32 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
         """Return camera entity id from process pictures."""
         return self._camera
 
+    async def async_update(self):
+        """First turn the led on to grab an image"""
+        if self._light is not None:
+            _LOGGER.debug("Turning on %s" % self._light)
+            await self.hass.services.async_call(
+                DOMAIN_LIGHT,
+                SERVICE_TURN_ON,
+                {ATTR_ENTITY_ID: self._light},
+            )
+
+            @callback
+            async def call_later(*_):
+                try:
+                    await super(MeterParserMeasurementEntity, self).async_update()
+                finally:
+                    _LOGGER.debug("Turning off %s" % self._light)
+                    await self.hass.services.async_call(
+                        DOMAIN_LIGHT,
+                        SERVICE_TURN_OFF,
+                        {ATTR_ENTITY_ID: self._light},
+                    )
+
+            async_call_later(self.hass, 1, call_later)
+        else:
+            await super(MeterParserMeasurementEntity, self).async_update()
+
     async def async_process_image(self, image):
         """Process image."""
         await self.hass.async_add_executor_job(self.process_image, image)
@@ -233,13 +279,14 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
             reading = parse_dials(
                 cv_image,
                 readout=self._dials,
+                entity_id=self._attr_unique_id,
                 minDiameter=self._dial_size,
                 maxDiameter=self._dial_size + 250,
                 debug_path=self._debug_path,
             )
         elif self._metertype == METERTYPEDIGITS:
             reading = parse_digits(
-                cv_image, self._digits, self._ocr_key, debug_path=self._debug_path
+                cv_image, self._digits, self._ocr_key, self._attr_unique_id, debug_path=self._debug_path
             )
         if self._decimals > 0:
             reading = float(reading) / float(10 ** self._decimals)
