@@ -15,43 +15,93 @@
 #    limitations under the License.
 
 import logging
+import os
+import time
 import requests
 import cv2
+import urllib.parse
+import numpy as np
 
 _LOGGER = logging.getLogger(__name__)
-
-OCR_API = "https://api.ocr.space/parse/image"
+MS_API = "/vision/v3.2/ocr"
 
 
 def parse_digits(
-    frame, digits_count: int, ocr_key: str, entity_id: str, debug_path: str = None
+    frame,
+    digits_count: int,
+    ocr_key: str,
+    ocr_url: str,
+    entity_id: str,
+    debug_path: str = None,
 ):
-    # Displaying digits and OCR
-    # curl -H "apikey:helloworld" --form "base64Image=data:image/jpeg;base64,/9j/AAQSk [Long string here ]" --form "language=eng" --form "isOverlayRequired=false" https://api.ocr.space/parse/image
-    imencoded = cv2.imencode(".jpg", frame)[1]
-    files = {
-        "file": ("image.jpg", imencoded.tostring(), "image/jpeg", {"Expires": "0"})
+    """Displaying digits and OCR"""
+    # remove red colors
+    lower = (200, 0, 0)  # lower bound for each channel
+    upper = (255, 0, 0)  # upper bound for each channel
+    mask = cv2.inRange(frame, lower, upper)
+    frame[mask != 0] = [255, 255, 255]
+
+    # Adjust the exposure
+    alpha = float(2.5)
+    blur = int(3)
+    threshold = 37
+    adjustment = 11
+    frame = cv2.multiply(frame, np.array([alpha]))
+    # Convert to grayscale
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    # Blur to reduce noise
+    frame = cv2.GaussianBlur(frame, (blur, blur), 0)
+    # Threshold the image
+    frame = cv2.adaptiveThreshold(
+        frame,
+        255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY,
+        threshold,
+        adjustment,
+    )
+
+    debugfile = time.strftime(entity_id + "-%Y-%m-%d_%H-%M-%S")
+    if debug_path is not None:
+        cv2.imwrite(os.path.join(debug_path, "%s-in.jpg" % debugfile), frame)
+
+    query_params = {
+        # Request parameters
+        "language": "en",
+        "detectOrientation": "false",
+        "model-version": "latest",
     }
-    payload = {"apikey": ocr_key, "language": "eng", "scale": True, "OCREngine": 2}
-    _LOGGER.debug("%s: OCR image: %s" % (entity_id, OCR_API))
-    response = requests.post(OCR_API, files=files, data=payload, timeout=60)
+    header_params = {
+        "Accept": "application/json",
+        "Content-Type": "application/octet-stream",
+        "Ocp-Apim-Subscription-Key": ocr_key,
+    }
+    ocr_url = urllib.parse.urljoin(ocr_url, MS_API)
+
+    _LOGGER.debug("%s: OCR image: %s" % (entity_id, ocr_url))
+    imencoded = cv2.imencode(".jpg", frame)[1]
+    response = requests.post(
+        ocr_url,
+        data=imencoded.tobytes(),
+        params=query_params,
+        headers=header_params,
+        timeout=9,
+    )
 
     if response.status_code == 200:
         result = response.json()
-        if "ParsedResults" in result and len(result["ParsedResults"]) > 0:
-            result = result["ParsedResults"][0]
-            if (
-                "ErrorMessage" in result
-                and result["ErrorMessage"] is not None
-                and result["ErrorMessage"] != ""
-            ):
-                raise Exception(result["ErrorMessage"])
-            else:
-                return parse_result(
-                    result["ParsedText"] if "ParsedText" in result else None,
-                    digits_count,
-                    entity_id,
-                )
+        if "regions" in result:
+            text = ""
+            for r in result["regions"]:
+                for l in r["lines"]:
+                    for w in l["words"]:
+                        text = text + w["text"]
+                    text = text + "\n"
+            return parse_result(
+                text,
+                digits_count,
+                entity_id,
+            )
         if "ErrorMessage" in result:
             raise Exception(result["ErrorMessage"])
 
@@ -59,6 +109,7 @@ def parse_digits(
 
 
 def parse_result(ocr: str, digits: int, entity_id: str):
+    """Parse possible results"""
     if ocr is not None and ocr != "":
         array = ocr.strip().split("\n")
         for x_str in array:

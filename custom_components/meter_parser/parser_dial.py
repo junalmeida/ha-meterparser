@@ -152,7 +152,7 @@ def parse_dials(
     maxRadius = round((maxDiameter / 2) * ratio)
     maxDiff = round(HORIZONTAL_MAX_DIFF * ratio)
 
-    debugfile = time.strftime("dials-%Y-%m-%d_%H-%M-%S")
+    debugfile = time.strftime(entity_id + "-%Y-%m-%d_%H-%M-%S")
     if debug_path is not None:
         cv2.imwrite(os.path.join(debug_path, "%s-in.jpg" % debugfile), gray)
 

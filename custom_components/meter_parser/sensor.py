@@ -13,6 +13,7 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+import asyncio
 import datetime
 import logging
 import os
@@ -25,6 +26,7 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
 )
 from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.util import slugify
 
 from .parser_dial import parse_dials
 from .parser_digits import parse_digits
@@ -52,6 +54,7 @@ from homeassistant.components.light import (
 )
 from homeassistant.components.camera import (
     DOMAIN as DOMAIN_CAMERA,
+    ENTITY_ID_FORMAT,
 )
 
 from homeassistant.core import Config, HomeAssistant, callback, split_entity_id
@@ -72,8 +75,9 @@ from .const import (
     CONF_DIALS,
     CONF_DIGITS_COUNT,
     CONF_METERTYPE,
-    CONF_OCR_API,
-    CONF_ZOOMFACTOR,
+    CONF_OCR_API_KEY,
+    CONF_OCR_API_URL,
+    CONF_RECTANGLE,
     DEVICE_CLASS_WATER,
     DIAL_DEFAULT_READOUT,
     DOMAIN,
@@ -98,9 +102,10 @@ SOURCE_SCHEMA = vol.Schema(
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_SOURCE): vol.All(cv.ensure_list, [SOURCE_SCHEMA]),
-        vol.Optional(CONF_ZOOMFACTOR, default=1): cv.positive_int,
+        vol.Optional(CONF_RECTANGLE, default=None): cv.ensure_list,
         vol.Required(CONF_METERTYPE): vol.In(METERTYPES),
-        vol.Optional(CONF_OCR_API): cv.string,
+        vol.Optional(CONF_OCR_API_URL): cv.string,
+        vol.Optional(CONF_OCR_API_KEY): cv.string,
         vol.Optional(CONF_DIGITS_COUNT, default=6): cv.positive_int,
         vol.Optional(CONF_DECIMALS_COUNT, default=0): cv.positive_int,
         vol.Optional(CONF_DEBUG, default=False): cv.boolean,
@@ -126,7 +131,6 @@ async def async_setup_platform(
     hass: HomeAssistant, config: dict, async_add_entities, discovery_info=None
 ):
     """Set up the Meter Parser platform."""
-    """Set up the OpenCV image processing platform."""
     if not CV2_IMPORTED:
         _LOGGER.error(
             "No OpenCV library found! Install or compile for your system "
@@ -145,8 +149,6 @@ async def async_setup_platform(
                 camera.get(CONF_NAME),
             )
         )
-    # TODO: Add other entities
-
     async_add_entities(entities)
 
 
@@ -164,6 +166,9 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
         """Initialize."""
         super().__init__()
         self.hass = hass
+
+        hass.bus.async_listen("esphome.device_alive", self._handle_event)
+
         self._confidence = 0.7
         self._camera = entity_id
         self._light = light_entity_id
@@ -220,7 +225,15 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
         self._decimals: int = int(
             config[CONF_DECIMALS_COUNT] if CONF_DECIMALS_COUNT in config else 0
         )
-        self._ocr_key: str = config[CONF_OCR_API] if CONF_OCR_API in config else ""
+        self._rect: list[int] = (
+            config[CONF_RECTANGLE] if CONF_RECTANGLE in config else None
+        )
+        self._ocr_key: str = (
+            config[CONF_OCR_API_KEY] if CONF_OCR_API_KEY in config else ""
+        )
+        self._ocr_url: str = (
+            config[CONF_OCR_API_URL] if CONF_OCR_API_URL in config else ""
+        )
 
         self._last_update_success: datetime = None
         self._attr_extra_state_attributes = {CONF_METERTYPE: self._metertype}
@@ -234,6 +247,13 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
     def camera_entity(self):
         """Return camera entity id from process pictures."""
         return self._camera
+
+    def _handle_event(self, event):
+        device_id = ENTITY_ID_FORMAT.format(slugify(event.data.get("device_name")))
+        _LOGGER.debug("Got esphome.device_alive event for %s" % device_id)
+        if self._camera == device_id:
+            asyncio.run_coroutine_threadsafe(self.async_update(), self.hass.loop)
+            return
 
     async def async_update(self):
         """First turn the led on to grab an image"""
@@ -274,6 +294,12 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
     def process_image(self, image):
         """Update data via opencv."""
         cv_image = cv2.imdecode(numpy.asarray(bytearray(image)), cv2.IMREAD_UNCHANGED)
+        if self._rect is not None and len(self._rect) == 4:
+            x = self._rect[0]
+            y = self._rect[1]
+            w = self._rect[2]
+            h = self._rect[3]
+            cv_image = cv_image[y : y + h, x : x + w]
         reading = 0
         if self._metertype == METERTYPEDIALS:
             reading = parse_dials(
@@ -286,7 +312,12 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
             )
         elif self._metertype == METERTYPEDIGITS:
             reading = parse_digits(
-                cv_image, self._digits, self._ocr_key, self._attr_unique_id, debug_path=self._debug_path
+                cv_image,
+                self._digits,
+                self._ocr_key,
+                self._ocr_url,
+                self._attr_unique_id,
+                debug_path=self._debug_path,
             )
         if self._decimals > 0:
             reading = float(reading) / float(10 ** self._decimals)

@@ -59,8 +59,9 @@ SENSOR = "sensor"
 PLATFORMS = [SENSOR]
 
 # Configuration and options
-CONF_ZOOMFACTOR = "zoom_factor"
-CONF_OCR_API = "ocr_space_key"
+CONF_RECTANGLE = "rectangle"
+CONF_OCR_API_KEY = "ocr_api_key"
+CONF_OCR_API_URL = "ocr_api_url"
 
 CONF_METERTYPE = "meter_type"
 METERTYPEDIALS = "dials"
