@@ -1,4 +1,4 @@
-"""Meter Parser Image Processing component and sensor"""
+"""Meter Parser Image Processing component and sensor."""
 #    Copyright 2021 Marcos Junior
 
 #    Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,6 +19,7 @@ import logging
 import os
 import numpy
 import voluptuous as vol
+
 
 from homeassistant.components.sensor import (
     STATE_CLASS_TOTAL_INCREASING,
@@ -57,9 +58,8 @@ from homeassistant.components.camera import (
     ENTITY_ID_FORMAT,
 )
 
-from homeassistant.core import Config, HomeAssistant, callback, split_entity_id
+from homeassistant.core import HomeAssistant, callback, split_entity_id
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers import device_registry as dr
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.entity import (
     generate_entity_id,
@@ -76,8 +76,8 @@ from .const import (
     CONF_DIGITS_COUNT,
     CONF_METERTYPE,
     CONF_OCR_API_KEY,
-    CONF_OCR_API_URL,
     CONF_RECTANGLE,
+    CONF_ROTATE_ANGLE,
     DEVICE_CLASS_WATER,
     DIAL_DEFAULT_READOUT,
     DOMAIN,
@@ -103,8 +103,11 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_SOURCE): vol.All(cv.ensure_list, [SOURCE_SCHEMA]),
         vol.Optional(CONF_RECTANGLE, default=None): cv.ensure_list,
+        vol.Optional(CONF_ROTATE_ANGLE, default=0): vol.All(
+            int, vol.Range(min=-360, max=360)
+        ),
         vol.Required(CONF_METERTYPE): vol.In(METERTYPES),
-        vol.Optional(CONF_OCR_API_URL): cv.string,
+        # vol.Optional(CONF_OCR_API_URL): cv.string,
         vol.Optional(CONF_OCR_API_KEY): cv.string,
         vol.Optional(CONF_DIGITS_COUNT, default=6): cv.positive_int,
         vol.Optional(CONF_DECIMALS_COUNT, default=0): cv.positive_int,
@@ -228,12 +231,15 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
         self._rect: list[int] = (
             config[CONF_RECTANGLE] if CONF_RECTANGLE in config else None
         )
+        self._rotate = (
+            int(config[CONF_ROTATE_ANGLE]) if CONF_ROTATE_ANGLE in config else 0
+        )
         self._ocr_key: str = (
             config[CONF_OCR_API_KEY] if CONF_OCR_API_KEY in config else ""
         )
-        self._ocr_url: str = (
-            config[CONF_OCR_API_URL] if CONF_OCR_API_URL in config else ""
-        )
+        # self._ocr_url: str = (
+        #     config[CONF_OCR_API_URL] if CONF_OCR_API_URL in config else ""
+        # )
 
         self._last_update_success: datetime = None
         self._attr_extra_state_attributes = {CONF_METERTYPE: self._metertype}
@@ -277,7 +283,7 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
                         {ATTR_ENTITY_ID: self._light},
                     )
 
-            async_call_later(self.hass, 1, call_later)
+            async_call_later(self.hass, 1.5, call_later)
         else:
             await super(MeterParserMeasurementEntity, self).async_update()
 
@@ -294,6 +300,8 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
     def process_image(self, image):
         """Update data via opencv."""
         cv_image = cv2.imdecode(numpy.asarray(bytearray(image)), cv2.IMREAD_UNCHANGED)
+        if self._rotate != 0:
+            cv_image = _rotate_image(image=cv_image, angle=self._rotate)
         if self._rect is not None and len(self._rect) == 4:
             x = self._rect[0]
             y = self._rect[1]
@@ -315,7 +323,7 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
                 cv_image,
                 self._digits,
                 self._ocr_key,
-                self._ocr_url,
+                # self._ocr_url,
                 self._attr_unique_id,
                 debug_path=self._debug_path,
             )
@@ -324,3 +332,19 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
         self._attr_state = float(reading)
         self._attr_native_value = float(reading)
         self._last_update_success = datetime.datetime.now()
+
+def _rotate_image(image, angle, center=None, scale=1.0):
+    # grab the dimensions of the image
+    (h, w) = image.shape[:2]
+
+    # if the center is None, initialize it as the center of
+    # the image
+    if center is None:
+        center = (w // 2, h // 2)
+
+    # perform the rotation
+    M = cv2.getRotationMatrix2D(center, angle, scale)
+    rotated = cv2.warpAffine(image, M, (w, h))
+
+    # return the rotated image
+    return rotated
