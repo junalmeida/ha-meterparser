@@ -34,7 +34,7 @@ COLOR_BLUE = (255, 0, 0)
 COLOR_BLACK = (0, 0, 0)
 
 
-def filter_circles(circles, maxDiff):
+def filter_circles(circles, maxDiff, entity_id: str):
     # convert the (x, y) coordinates and radius of the circles to integers
     circles = np.round(circles[0, :]).astype("int")
     # sort by X-axis
@@ -57,7 +57,7 @@ def filter_circles(circles, maxDiff):
         if abs(y - min_y) < maxDiff:
             valid_circles.append((x, y, r))
 
-    _LOGGER.debug("Found #%i circles:" % len(valid_circles))
+    _LOGGER.debug("%s: Found #%i circles:" % (entity_id, len(valid_circles)))
     return valid_circles
 
 
@@ -136,7 +136,7 @@ def process_values(values):
 
 
 def parse_dials(
-    frame, readout: list[str], minDiameter=200, maxDiameter=340, debug_path: str = None
+    frame, readout: list[str], entity_id: str, minDiameter=200, maxDiameter=340, debug_path: str = None
 ):
     width = frame.shape[1]
     if width < IDEAL_WIDTH:
@@ -152,7 +152,7 @@ def parse_dials(
     maxRadius = round((maxDiameter / 2) * ratio)
     maxDiff = round(HORIZONTAL_MAX_DIFF * ratio)
 
-    debugfile = time.strftime("dials-%Y-%m-%d_%H-%M-%S")
+    debugfile = time.strftime(entity_id + "-%Y-%m-%d_%H-%M-%S")
     if debug_path is not None:
         cv2.imwrite(os.path.join(debug_path, "%s-in.jpg" % debugfile), gray)
 
@@ -174,7 +174,7 @@ def parse_dials(
         )
 
     # find circles which are roughly on the same level
-    circles = filter_circles(circles, maxDiff)
+    circles = filter_circles(circles, maxDiff, entity_id)
 
     values = []
 
@@ -188,7 +188,7 @@ def parse_dials(
         values.append(actual_value)
 
         _LOGGER.debug(
-            "#%i: (%i, %i) radius: %i - value: %f" % (i, x, y, r, actual_value)
+            "%s: #%i: (%i, %i) radius: %i - value: %f" % (entity_id, i, x, y, r, actual_value)
         )
 
         # draw needle and value
@@ -222,7 +222,7 @@ def parse_dials(
 
     # TODO: compare to the previous reading? it should never be less than the previous one
     reading = process_values(values)
-    _LOGGER.debug("Final reading: %s" % reading)
+    _LOGGER.debug("%s: Final reading: %s" % (entity_id, reading))
     cv2.putText(
         output,
         reading,
