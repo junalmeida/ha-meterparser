@@ -19,7 +19,6 @@ import os
 import time
 import requests
 import cv2
-import urllib.parse
 import numpy as np
 import re
 
@@ -96,7 +95,8 @@ def parse_result(ocr: str, digits: int, entity_id: str):
     if ocr is not None and ocr != "":
         array = ocr.strip().split("\n")
         for x_str in array:
-            x_str = x_str.replace(" ", "").replace(".", "").replace(",", "").replace("|", "").replace("/", "").replace("\\", "").replace("o", "0").replace("O", "0")  # replace common ocr mistakes
+            # replace common ocr mistakes
+            x_str = x_str.replace(" ", "").replace(".", "").replace(",", "").replace("|", "").replace("/", "").replace("\\", "").replace("o", "0").replace("O", "0")
             x_str = re.search("[0-9]{%s}" % digits, x_str)
             if x_str is not None and x_str.group(0) is not None:
                 _LOGGER.debug("%s: Final reading: %s" % (entity_id, x_str.group(0)))

@@ -303,11 +303,8 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
         if self._rotate != 0:
             cv_image = _rotate_image(image=cv_image, angle=self._rotate)
         if self._rect is not None and len(self._rect) == 4:
-            x = self._rect[0]
-            y = self._rect[1]
-            w = self._rect[2]
-            h = self._rect[3]
-            cv_image = cv_image[y : y + h, x : x + w]
+            cv_image = _crop_image(image=cv_image, rect=self._rect)
+
         reading = 0
         if self._metertype == METERTYPEDIALS:
             reading = parse_dials(
@@ -333,6 +330,7 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
         self._attr_native_value = float(reading)
         self._last_update_success = datetime.datetime.now()
 
+
 def _rotate_image(image, angle, center=None, scale=1.0):
     # grab the dimensions of the image
     (h, w) = image.shape[:2]
@@ -343,8 +341,16 @@ def _rotate_image(image, angle, center=None, scale=1.0):
         center = (w // 2, h // 2)
 
     # perform the rotation
-    M = cv2.getRotationMatrix2D(center, angle, scale)
+    M = cv2.getRotationMatrix2D(center, -angle, scale)
     rotated = cv2.warpAffine(image, M, (w, h))
 
     # return the rotated image
     return rotated
+
+
+def _crop_image(image, rect):
+    x = rect[0]
+    y = rect[1]
+    w = rect[2]
+    h = rect[3]
+    return image[y: y + h, x: x + w]
