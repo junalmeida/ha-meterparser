@@ -246,9 +246,10 @@ def parse_dials(
     # we could do that earlier, but we would lose important debug messages
     dials_count = len(readout)
     if len(circles) != dials_count:
-        raise Exception(
+        _LOGGER.error(
             "Could not find the correct amount of dials. Found: %d" % len(circles)
         )
+        return 0
 
     return reading
 

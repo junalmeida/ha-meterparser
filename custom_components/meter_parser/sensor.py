@@ -171,14 +171,12 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
         super().__init__()
         self.hass = hass
 
-        _LOGGER.debug("Initializing and listening to esphome.device_alive...")
-        hass.bus.async_listen("esphome.device_alive", self._handle_event)
-
         self._confidence = 0.7
         self._camera = entity_id
         self._light = light_entity_id
         self._debug: bool = bool(config[CONF_DEBUG] if CONF_DEBUG in config else False)
         self._debug_path = hass.config.path("debug/" + DOMAIN) if self._debug else None
+        self._error_count = 0
         if self._debug_path is not None and not os.path.exists(self._debug_path):
             os.makedirs(self._debug_path)
 
@@ -244,7 +242,9 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
         # )
 
         self._last_update_success: datetime = None
-        self._attr_extra_state_attributes = {CONF_METERTYPE: self._metertype}
+
+    def _set_attributes(self):
+        self._attr_extra_state_attributes = {CONF_METERTYPE: self._metertype, "last_update": self._last_update_success}
 
     @property
     def confidence(self):
@@ -255,6 +255,14 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
     def camera_entity(self):
         """Return camera entity id from process pictures."""
         return self._camera
+
+    async def async_added_to_hass(self) -> None:
+        """Handle entity which will be added."""
+        await super().async_added_to_hass()
+        last_state = await self.async_get_last_state()
+        if not last_state:
+            self._attr_state = last_state.state
+            self._attr_native_value = last_state.state
 
     def _handle_event(self, event):
         device_id = ENTITY_ID_FORMAT.format(slugify(event.data.get("device_name")))
@@ -337,15 +345,26 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
                 )
         except Exception:
             _LOGGER.error(traceback.format_exc())
+            self._error_count += 1
+
+        if self._attr_native_value is not None:
+            old_reading = float(self._attr_native_value)
         if reading > 0:
             if self._decimals > 0:
                 reading = reading / float(10 ** self._decimals)
-            self._attr_state = reading
-            self._attr_native_value = reading
-            self._last_update_success = datetime.datetime.now()
-            self._attr_available = True
+            if reading > old_reading:
+                self._attr_state = reading
+                self._attr_native_value = reading
+                self._last_update_success = datetime.datetime.now()
+                self._attr_available = True
+                self._error_count = 0
+            else:
+                self._attr_available = False if self._error_count > 10 else True
+                _LOGGER.error("New reading is less than current reading. Got your meter replaced? Reset this integration.")
         else:
-            self._attr_available = False
+            self._attr_available = False if self._error_count > 10 else True
+            _LOGGER.error("Invalid reading")
+        self._set_attributes()
 
 
 def _rotate_image(image, angle, center=None, scale=1.0):
@@ -370,4 +389,4 @@ def _crop_image(image, rect):
     y = rect[1]
     w = rect[2]
     h = rect[3]
-    return image[y : y + h, x : x + w]
+    return image[y: y + h, x: x + w]

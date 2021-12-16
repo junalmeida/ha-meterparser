@@ -106,4 +106,4 @@ def parse_result(ocr: str, digits: int, entity_id: str):
                 _LOGGER.debug("%s: Final reading: %s" % (entity_id, x_str.group(0)))
                 return x_str.group(0)
     _LOGGER.error("Not a valid OCR result: %s" % ocr)
-    return None
+    return 0
