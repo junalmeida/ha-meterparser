@@ -6,11 +6,8 @@ name = "pypi"
 [packages]
 requests = "*"
 opencv-python-headless = "4.5.2.54"
-numpy = "1.21.2"
-pandas = "*"
-matplotlib = "*"
-imutils = "*"
-scipy = "*"
+keras = "*"
+
 
 [dev-packages]
 pytest = "*"

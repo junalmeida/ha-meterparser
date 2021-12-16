@@ -3,7 +3,9 @@ import cv2
 
 from custom_components.meter_parser.parser_dial import parse_dials
 from custom_components.meter_parser.parser_digits import parse_digits
+from custom_components.meter_parser.parser_digits_tf import parse_digits as parse_digits_tf
 from custom_components.meter_parser.sensor import _crop_image, _rotate_image
+from custom_components.meter_parser.train_model import run_test_harness
 
 ocr_key = "890a9b9b8388957"
 entity_id = "test.test"
@@ -98,3 +100,23 @@ def test_water_rotate_crop():
     inputFrame = _crop_image(inputFrame, [365, 405, 160, 60])
     reading = parse_digits(inputFrame, 6, ocr_key, entity_id, debug_path=dir_path)
     assert reading == '028065'
+
+
+def test_water_crop_tf():
+    samplepath = os.path.join(os.path.dirname(__file__), 'sample_water-1.jpg')
+    inputFrame = cv2.imread(samplepath)
+    digits = [
+        _crop_image(inputFrame, [194, 158, 27, 37]),
+        _crop_image(inputFrame, [221, 158, 27, 37]),
+        _crop_image(inputFrame, [249, 158, 27, 37]),
+        _crop_image(inputFrame, [280, 158, 27, 37]),
+        _crop_image(inputFrame, [308, 158, 27, 37]),
+        _crop_image(inputFrame, [333, 158, 27, 37])
+    ]
+
+    reading = parse_digits_tf(digits, entity_id, debug_path=dir_path)
+    assert reading == '028020'
+
+
+def test_train_tf():
+    run_test_harness()
