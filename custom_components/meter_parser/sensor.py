@@ -244,7 +244,10 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
         self._last_update_success: datetime = None
 
     def _set_attributes(self):
-        self._attr_extra_state_attributes = {CONF_METERTYPE: self._metertype, "last_update": self._last_update_success}
+        self._attr_extra_state_attributes = {
+            CONF_METERTYPE: self._metertype,
+            "last_update": self._last_update_success,
+        }
 
     @property
     def confidence(self):
@@ -260,16 +263,16 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
         """Handle entity which will be added."""
         await super().async_added_to_hass()
         last_state = await self.async_get_last_state()
-        if not last_state:
+        if last_state is not None and last_state.state != "unknown":
             self._attr_state = last_state.state
             self._attr_native_value = last_state.state
 
-    def _handle_event(self, event):
-        device_id = ENTITY_ID_FORMAT.format(slugify(event.data.get("device_name")))
-        _LOGGER.debug("Got esphome.device_alive event for %s" % device_id)
-        if self._camera == device_id:
-            asyncio.run_coroutine_threadsafe(self.async_update(), self.hass.loop)
-            return
+    # def _handle_event(self, event):
+    #     device_id = ENTITY_ID_FORMAT.format(slugify(event.data.get("device_name")))
+    #     _LOGGER.debug("Got esphome.device_alive event for %s" % device_id)
+    #     if self._camera == device_id:
+    #         asyncio.run_coroutine_threadsafe(self.async_update(), self.hass.loop)
+    #         return
 
     async def async_update(self):
         """First turn the led on to grab an image"""
@@ -286,6 +289,8 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
                 try:
                     _LOGGER.debug("Taking a snapshot from %s..." % self.entity_id)
                     await super(MeterParserMeasurementEntity, self).async_update()
+                except Exception:
+                    _LOGGER.error(traceback.format_exc())
                 finally:
                     _LOGGER.debug("Turning off %s" % self._light)
                     await self.hass.services.async_call(
@@ -296,7 +301,11 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
 
             async_call_later(self.hass, 1.5, call_later)
         else:
-            await super(MeterParserMeasurementEntity, self).async_update()
+            try:
+                _LOGGER.debug("Taking a snapshot from %s..." % self.entity_id)
+                await super(MeterParserMeasurementEntity, self).async_update()
+            except Exception:
+                _LOGGER.error(traceback.format_exc())
 
     async def async_process_image(self, image):
         """Process image."""
@@ -360,7 +369,9 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
                 self._error_count = 0
             else:
                 self._attr_available = False if self._error_count > 10 else True
-                _LOGGER.error("New reading is less than current reading. Got your meter replaced? Reset this integration.")
+                _LOGGER.error(
+                    "New reading is less than current reading. Got your meter replaced? Reset this integration."
+                )
         else:
             self._attr_available = False if self._error_count > 10 else True
             _LOGGER.error("Invalid reading")
@@ -389,4 +400,4 @@ def _crop_image(image, rect):
     y = rect[1]
     w = rect[2]
     h = rect[3]
-    return image[y: y + h, x: x + w]
+    return image[y : y + h, x : x + w]
