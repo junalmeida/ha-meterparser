@@ -77,8 +77,6 @@ from .const import (
     CONF_DIGITS_COUNT,
     CONF_METERTYPE,
     CONF_OCR_API_KEY,
-    CONF_RECTANGLE,
-    CONF_ROTATE_ANGLE,
     DEVICE_CLASS_WATER,
     DIAL_DEFAULT_READOUT,
     DOMAIN,
@@ -103,12 +101,7 @@ SOURCE_SCHEMA = vol.Schema(
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_SOURCE): vol.All(cv.ensure_list, [SOURCE_SCHEMA]),
-        vol.Optional(CONF_RECTANGLE, default=None): cv.ensure_list,
-        vol.Optional(CONF_ROTATE_ANGLE, default=0): vol.All(
-            int, vol.Range(min=-360, max=360)
-        ),
         vol.Required(CONF_METERTYPE): vol.In(METERTYPES),
-        # vol.Optional(CONF_OCR_API_URL): cv.string,
         vol.Optional(CONF_OCR_API_KEY): cv.string,
         vol.Optional(CONF_DIGITS_COUNT, default=6): cv.positive_int,
         vol.Optional(CONF_DECIMALS_COUNT, default=0): cv.positive_int,
@@ -228,12 +221,6 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
         self._decimals: int = int(
             config[CONF_DECIMALS_COUNT] if CONF_DECIMALS_COUNT in config else 0
         )
-        self._rect: list[int] = (
-            config[CONF_RECTANGLE] if CONF_RECTANGLE in config else None
-        )
-        self._rotate = (
-            int(config[CONF_ROTATE_ANGLE]) if CONF_ROTATE_ANGLE in config else 0
-        )
         self._ocr_key: str = (
             config[CONF_OCR_API_KEY] if CONF_OCR_API_KEY in config else ""
         )
@@ -325,6 +312,12 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
             cv_image = cv2.imdecode(
                 numpy.asarray(bytearray(image)), cv2.IMREAD_UNCHANGED
             )
+            arucoDict = cv2.aruco.Dictionary_get(cv2.aruco.DICT_ARUCO_ORIGINAL)
+            arucoParams = cv2.aruco.DetectorParameters_create()
+            (corners, ids, rejected) = cv2.aruco.detectMarkers(
+                image, arucoDict, parameters=arucoParams
+            )
+
             if self._rotate != 0:
                 cv_image = _rotate_image(image=cv_image, angle=self._rotate)
             if self._rect is not None and len(self._rect) == 4:

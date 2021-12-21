@@ -57,8 +57,6 @@ SENSOR = "sensor"
 PLATFORMS = [SENSOR]
 
 # Configuration and options
-CONF_RECTANGLE = "rectangle"
-CONF_ROTATE_ANGLE = "rotate_angle"
 CONF_OCR_API_KEY = "ocr_api_key"
 # CONF_OCR_API_URL = "ocr_api_url"
 
