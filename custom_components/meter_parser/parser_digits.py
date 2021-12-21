@@ -55,12 +55,7 @@ def parse_digits(
     if debug_path is not None:
         cv2.imwrite(os.path.join(debug_path, "%s-in.jpg" % debugfile), frame)
 
-    payload = {
-        "apikey": ocr_key,
-        "language": "eng",
-        "scale": "true",
-        "OCREngine": "2"
-    }
+    payload = {"apikey": ocr_key, "language": "eng", "scale": "true", "OCREngine": "2"}
 
     _LOGGER.debug("%s: OCR image: %s" % (entity_id, URL_API))
     imencoded = cv2.imencode(".jpg", frame)[1]
@@ -96,9 +91,19 @@ def parse_result(ocr: str, digits: int, entity_id: str):
         array = ocr.strip().split("\n")
         for x_str in array:
             # replace common ocr mistakes
-            x_str = x_str.replace(" ", "").replace(".", "").replace(",", "").replace("|", "").replace("/", "").replace("\\", "").replace("o", "0").replace("O", "0")
+            x_str = (
+                x_str.replace(" ", "")
+                .replace(".", "")
+                .replace(",", "")
+                .replace("|", "")
+                .replace("/", "")
+                .replace("\\", "")
+                .replace("o", "0")
+                .replace("O", "0")
+            )
             x_str = re.search("[0-9]{%s}" % digits, x_str)
             if x_str is not None and x_str.group(0) is not None:
                 _LOGGER.debug("%s: Final reading: %s" % (entity_id, x_str.group(0)))
                 return x_str.group(0)
-    raise Exception("Unable to OCR image or no text found.")
+    _LOGGER.error("Not a valid OCR result: %s" % ocr)
+    return 0

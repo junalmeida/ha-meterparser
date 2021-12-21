@@ -18,6 +18,7 @@ import datetime
 import logging
 import os
 import numpy
+import traceback
 import voluptuous as vol
 
 
@@ -170,13 +171,12 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
         super().__init__()
         self.hass = hass
 
-        hass.bus.async_listen("esphome.device_alive", self._handle_event)
-
         self._confidence = 0.7
         self._camera = entity_id
         self._light = light_entity_id
         self._debug: bool = bool(config[CONF_DEBUG] if CONF_DEBUG in config else False)
         self._debug_path = hass.config.path("debug/" + DOMAIN) if self._debug else None
+        self._error_count = 0
         if self._debug_path is not None and not os.path.exists(self._debug_path):
             os.makedirs(self._debug_path)
 
@@ -242,7 +242,12 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
         # )
 
         self._last_update_success: datetime = None
-        self._attr_extra_state_attributes = {CONF_METERTYPE: self._metertype}
+
+    def _set_attributes(self):
+        self._attr_extra_state_attributes = {
+            CONF_METERTYPE: self._metertype,
+            "last_update": self._last_update_success,
+        }
 
     @property
     def confidence(self):
@@ -254,12 +259,20 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
         """Return camera entity id from process pictures."""
         return self._camera
 
-    def _handle_event(self, event):
-        device_id = ENTITY_ID_FORMAT.format(slugify(event.data.get("device_name")))
-        _LOGGER.debug("Got esphome.device_alive event for %s" % device_id)
-        if self._camera == device_id:
-            asyncio.run_coroutine_threadsafe(self.async_update(), self.hass.loop)
-            return
+    async def async_added_to_hass(self) -> None:
+        """Handle entity which will be added."""
+        await super().async_added_to_hass()
+        last_state = await self.async_get_last_state()
+        if last_state is not None and last_state.state != "unknown":
+            self._attr_state = last_state.state
+            self._attr_native_value = last_state.state
+
+    # def _handle_event(self, event):
+    #     device_id = ENTITY_ID_FORMAT.format(slugify(event.data.get("device_name")))
+    #     _LOGGER.debug("Got esphome.device_alive event for %s" % device_id)
+    #     if self._camera == device_id:
+    #         asyncio.run_coroutine_threadsafe(self.async_update(), self.hass.loop)
+    #         return
 
     async def async_update(self):
         """First turn the led on to grab an image"""
@@ -274,7 +287,10 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
             @callback
             async def call_later(*_):
                 try:
+                    _LOGGER.debug("Taking a snapshot from %s..." % self.entity_id)
                     await super(MeterParserMeasurementEntity, self).async_update()
+                except Exception:
+                    _LOGGER.error(traceback.format_exc())
                 finally:
                     _LOGGER.debug("Turning off %s" % self._light)
                     await self.hass.services.async_call(
@@ -285,7 +301,11 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
 
             async_call_later(self.hass, 1.5, call_later)
         else:
-            await super(MeterParserMeasurementEntity, self).async_update()
+            try:
+                _LOGGER.debug("Taking a snapshot from %s..." % self.entity_id)
+                await super(MeterParserMeasurementEntity, self).async_update()
+            except Exception:
+                _LOGGER.error(traceback.format_exc())
 
     async def async_process_image(self, image):
         """Process image."""
@@ -299,36 +319,63 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
 
     def process_image(self, image):
         """Update data via opencv."""
-        cv_image = cv2.imdecode(numpy.asarray(bytearray(image)), cv2.IMREAD_UNCHANGED)
-        if self._rotate != 0:
-            cv_image = _rotate_image(image=cv_image, angle=self._rotate)
-        if self._rect is not None and len(self._rect) == 4:
-            cv_image = _crop_image(image=cv_image, rect=self._rect)
-
         reading = 0
-        if self._metertype == METERTYPEDIALS:
-            reading = parse_dials(
-                cv_image,
-                readout=self._dials,
-                entity_id=self._attr_unique_id,
-                minDiameter=self._dial_size,
-                maxDiameter=self._dial_size + 250,
-                debug_path=self._debug_path,
+        _LOGGER.debug("Processing image...")
+        try:
+            cv_image = cv2.imdecode(
+                numpy.asarray(bytearray(image)), cv2.IMREAD_UNCHANGED
             )
-        elif self._metertype == METERTYPEDIGITS:
-            reading = parse_digits(
-                cv_image,
-                self._digits,
-                self._ocr_key,
-                # self._ocr_url,
-                self._attr_unique_id,
-                debug_path=self._debug_path,
-            )
-        if self._decimals > 0:
-            reading = float(reading) / float(10 ** self._decimals)
-        self._attr_state = float(reading)
-        self._attr_native_value = float(reading)
-        self._last_update_success = datetime.datetime.now()
+            if self._rotate != 0:
+                cv_image = _rotate_image(image=cv_image, angle=self._rotate)
+            if self._rect is not None and len(self._rect) == 4:
+                cv_image = _crop_image(image=cv_image, rect=self._rect)
+
+            if self._metertype == METERTYPEDIALS:
+                reading = float(
+                    parse_dials(
+                        cv_image,
+                        readout=self._dials,
+                        entity_id=self._attr_unique_id,
+                        minDiameter=self._dial_size,
+                        maxDiameter=self._dial_size + 250,
+                        debug_path=self._debug_path,
+                    )
+                )
+            elif self._metertype == METERTYPEDIGITS:
+                reading = float(
+                    parse_digits(
+                        cv_image,
+                        self._digits,
+                        self._ocr_key,
+                        # self._ocr_url,
+                        self._attr_unique_id,
+                        debug_path=self._debug_path,
+                    )
+                )
+        except Exception:
+            _LOGGER.error(traceback.format_exc())
+            self._error_count += 1
+
+        if self._attr_native_value is not None:
+            old_reading = float(self._attr_native_value)
+        if reading > 0:
+            if self._decimals > 0:
+                reading = reading / float(10 ** self._decimals)
+            if reading > old_reading:
+                self._attr_state = reading
+                self._attr_native_value = reading
+                self._last_update_success = datetime.datetime.now()
+                self._attr_available = True
+                self._error_count = 0
+            else:
+                self._attr_available = False if self._error_count > 10 else True
+                _LOGGER.error(
+                    "New reading is less than current reading. Got your meter replaced? Reset this integration."
+                )
+        else:
+            self._attr_available = False if self._error_count > 10 else True
+            _LOGGER.error("Invalid reading")
+        self._set_attributes()
 
 
 def _rotate_image(image, angle, center=None, scale=1.0):
@@ -341,8 +388,8 @@ def _rotate_image(image, angle, center=None, scale=1.0):
         center = (w // 2, h // 2)
 
     # perform the rotation
-    M = cv2.getRotationMatrix2D(center, -angle, scale)
-    rotated = cv2.warpAffine(image, M, (w, h))
+    matrix = cv2.getRotationMatrix2D(center, -angle, scale)
+    rotated = cv2.warpAffine(image, matrix, (w, h))
 
     # return the rotated image
     return rotated
@@ -353,4 +400,4 @@ def _crop_image(image, rect):
     y = rect[1]
     w = rect[2]
     h = rect[3]
-    return image[y: y + h, x: x + w]
+    return image[y : y + h, x : x + w]
