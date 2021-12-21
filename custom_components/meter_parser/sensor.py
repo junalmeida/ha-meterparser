@@ -354,7 +354,6 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
                 )
         except Exception:
             _LOGGER.error(traceback.format_exc())
-            self._error_count += 1
 
         if self._attr_native_value is not None:
             old_reading = float(self._attr_native_value)
@@ -368,13 +367,15 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
                 self._attr_available = True
                 self._error_count = 0
             else:
+                self._error_count += 1
                 self._attr_available = False if self._error_count > 10 else True
                 _LOGGER.error(
                     "New reading is less than current reading. Got your meter replaced? Reset this integration."
                 )
         else:
+            self._error_count += 1
             self._attr_available = False if self._error_count > 10 else True
-            _LOGGER.error("Invalid reading")
+
         self._set_attributes()
 
 
