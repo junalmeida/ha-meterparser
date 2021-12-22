@@ -32,6 +32,7 @@ from homeassistant.util import slugify
 
 from .parser_dial import parse_dials
 from .parser_digits import parse_digits
+from .image_utils import zoom_to_roi
 
 from homeassistant.components.image_processing import (
     CONF_ENTITY_ID,
@@ -77,8 +78,6 @@ from .const import (
     CONF_DIGITS_COUNT,
     CONF_METERTYPE,
     CONF_OCR_API_KEY,
-    CONF_RECTANGLE,
-    CONF_ROTATE_ANGLE,
     DEVICE_CLASS_WATER,
     DIAL_DEFAULT_READOUT,
     DOMAIN,
@@ -103,12 +102,7 @@ SOURCE_SCHEMA = vol.Schema(
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_SOURCE): vol.All(cv.ensure_list, [SOURCE_SCHEMA]),
-        vol.Optional(CONF_RECTANGLE, default=None): cv.ensure_list,
-        vol.Optional(CONF_ROTATE_ANGLE, default=0): vol.All(
-            int, vol.Range(min=-360, max=360)
-        ),
         vol.Required(CONF_METERTYPE): vol.In(METERTYPES),
-        # vol.Optional(CONF_OCR_API_URL): cv.string,
         vol.Optional(CONF_OCR_API_KEY): cv.string,
         vol.Optional(CONF_DIGITS_COUNT, default=6): cv.positive_int,
         vol.Optional(CONF_DECIMALS_COUNT, default=0): cv.positive_int,
@@ -228,12 +222,6 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
         self._decimals: int = int(
             config[CONF_DECIMALS_COUNT] if CONF_DECIMALS_COUNT in config else 0
         )
-        self._rect: list[int] = (
-            config[CONF_RECTANGLE] if CONF_RECTANGLE in config else None
-        )
-        self._rotate = (
-            int(config[CONF_ROTATE_ANGLE]) if CONF_ROTATE_ANGLE in config else 0
-        )
         self._ocr_key: str = (
             config[CONF_OCR_API_KEY] if CONF_OCR_API_KEY in config else ""
         )
@@ -325,16 +313,14 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
             cv_image = cv2.imdecode(
                 numpy.asarray(bytearray(image)), cv2.IMREAD_UNCHANGED
             )
-            if self._rotate != 0:
-                cv_image = _rotate_image(image=cv_image, angle=self._rotate)
-            if self._rect is not None and len(self._rect) == 4:
-                cv_image = _crop_image(image=cv_image, rect=self._rect)
+            cv_image = zoom_to_roi(cv_image)
 
             if self._metertype == METERTYPEDIALS:
                 reading = float(
                     parse_dials(
                         cv_image,
                         readout=self._dials,
+                        decimals_count=self._decimals,
                         entity_id=self._attr_unique_id,
                         minDiameter=self._dial_size,
                         maxDiameter=self._dial_size + 250,
@@ -346,6 +332,7 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
                     parse_digits(
                         cv_image,
                         self._digits,
+                        self._decimals,
                         self._ocr_key,
                         # self._ocr_url,
                         self._attr_unique_id,
@@ -358,8 +345,6 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
         if self._attr_native_value is not None:
             old_reading = float(self._attr_native_value)
         if reading > 0:
-            if self._decimals > 0:
-                reading = reading / float(10 ** self._decimals)
             if reading > old_reading:
                 self._attr_state = reading
                 self._attr_native_value = reading
@@ -377,28 +362,3 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
             self._attr_available = False if self._error_count > 10 else True
 
         self._set_attributes()
-
-
-def _rotate_image(image, angle, center=None, scale=1.0):
-    # grab the dimensions of the image
-    (h, w) = image.shape[:2]
-
-    # if the center is None, initialize it as the center of
-    # the image
-    if center is None:
-        center = (w // 2, h // 2)
-
-    # perform the rotation
-    matrix = cv2.getRotationMatrix2D(center, -angle, scale)
-    rotated = cv2.warpAffine(image, matrix, (w, h))
-
-    # return the rotated image
-    return rotated
-
-
-def _crop_image(image, rect):
-    x = rect[0]
-    y = rect[1]
-    w = rect[2]
-    h = rect[3]
-    return image[y : y + h, x : x + w]
