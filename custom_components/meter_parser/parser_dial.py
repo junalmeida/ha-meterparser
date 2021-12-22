@@ -119,7 +119,7 @@ def find_needle(image, cx, cy, radius):
     return value, needle_pt
 
 
-def process_values(values):
+def process_values(values: list, decimals_count: int):
     reading = ""
     for i, (v) in enumerate(values):
         whole = int(np.floor(v))
@@ -131,12 +131,14 @@ def process_values(values):
             # decimal value low but the next value is high, so need to adjust the reading by -1
             whole = whole - 1
         reading = reading + str(whole)
-
+    reading = float(reading)
+    if decimals_count > 0:
+        reading = reading / float(10 ** decimals_count)
     return reading
 
 
 def parse_dials(
-    frame, readout: list[str], entity_id: str, minDiameter=200, maxDiameter=340, debug_path: str = None
+    frame, readout: list[str], decimals_count: int, entity_id: str, minDiameter=200, maxDiameter=340, debug_path: str = None
 ):
     width = frame.shape[1]
     if width < IDEAL_WIDTH:
@@ -220,12 +222,11 @@ def parse_dials(
             miny = y
             radius = r
 
-    # TODO: compare to the previous reading? it should never be less than the previous one
-    reading = process_values(values)
+    reading = process_values(values, decimals_count)
     _LOGGER.debug("%s: Final reading: %s" % (entity_id, reading))
     cv2.putText(
         output,
-        reading,
+        str(reading),
         (minx, miny - maxRadius + round(radius / 2)),
         cv2.FONT_HERSHEY_TRIPLEX,
         1.3,
@@ -233,7 +234,7 @@ def parse_dials(
     )
     cv2.putText(
         output,
-        reading,
+        str(reading),
         (minx - 2, miny - maxRadius - 2 + round(radius / 2)),
         cv2.FONT_HERSHEY_TRIPLEX,
         1.3,
