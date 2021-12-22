@@ -9,7 +9,6 @@
     ],
     "requirements": [
         "numpy==1.21.4",
-        "opencv-python-headless==4.5.4.60",
         "opencv-contrib-python-headless==4.5.4.60"
     ],
     "config_flow": false,

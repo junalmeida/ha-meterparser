@@ -308,6 +308,7 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
     def process_image(self, image):
         """Update data via opencv."""
         reading = 0
+        prev_reading = 0
         _LOGGER.debug("Processing image...")
         try:
             cv_image = cv2.imdecode(
@@ -342,10 +343,10 @@ class MeterParserMeasurementEntity(ImageProcessingEntity, SensorEntity, RestoreE
         except Exception:
             _LOGGER.error(traceback.format_exc())
 
-        if self._attr_native_value is not None:
-            old_reading = float(self._attr_native_value)
+        if self._attr_native_value is not None and str(self._attr_native_value).isnumeric():
+            prev_reading = float(self._attr_native_value)
         if reading > 0:
-            if reading > old_reading:
+            if reading >= prev_reading:
                 self._attr_state = reading
                 self._attr_native_value = reading
                 self._last_update_success = datetime.datetime.now()
