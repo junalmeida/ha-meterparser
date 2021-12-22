@@ -4,9 +4,14 @@
     "name": "Meter Parser",
     "iot_class": "local_polling",
     "after_dependencies": [
-        "camera", "opencv"
+        "camera",
+        "opencv"
     ],
-    "requirements": ["numpy==1.21.4", "opencv-python-headless==4.5.2.54", "opencv-contrib-python-headless==4.5.2.54"],
+    "requirements": [
+        "numpy==1.21.4",
+        "opencv-python-headless==4.5.4.60",
+        "opencv-contrib-python-headless==4.5.4.60"
+    ],
     "config_flow": false,
     "documentation": "https://github.com/junalmeida/ha-meterparser#readme",
     "issue_tracker": "https://github.com/junalmeida/ha-meterparser/issues",
