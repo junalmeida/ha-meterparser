@@ -87,7 +87,9 @@ def parse_digits(
     raise Exception(response.text)
 
 
-def parse_result(ocr: str, digits_count: int, decimals_count: int, entity_id: str) -> float:
+def parse_result(
+    ocr: str, digits_count: int, decimals_count: int, entity_id: str
+) -> float:
     """Parse possible results"""
     reading = float(0)
     if ocr is not None and ocr != "":
@@ -120,5 +122,7 @@ def parse_result(ocr: str, digits_count: int, decimals_count: int, entity_id: st
     else:
         if decimals_count > 0:
             reading = reading / float(10 ** decimals_count)
-        _LOGGER.debug("%s: Final reading: %s" % (entity_id, reading))
+        _LOGGER.debug(
+            "%s: Final reading '%s' from OCR '%s'" % (entity_id, reading, ocr)
+        )
     return reading
