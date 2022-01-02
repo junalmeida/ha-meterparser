@@ -1,3 +1,10 @@
+It turned out this works better as an add-on to mqtt so I can have better control and resources to parse digits. 
+Please refer to https://github.com/junalmeida/homeassistant-addons
+
+This repository is archived.
+
+
+
 <img src="docs/electric-meter.png" align="right" width="128" />  
 
 # Home Assistant - Meter Parser Integration
